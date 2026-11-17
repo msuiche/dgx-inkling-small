@@ -24,6 +24,7 @@ from vllm.model_executor.utils import set_weight_attrs
 
 from .ops.activation import swiglu_quantize
 from .ops.block_scales import shuffle_rows, swizzle_block_scales
+from .ops.gb10_load import copy_from_checkpoint_
 from .ops.moe import NUM_COUNTERS, combine, combine_push, route
 from .ops.seq_parallel import SeqParallel
 from .ops.trtllm_bmm import bmm, expert_plan, load_kernels
@@ -161,20 +162,22 @@ class Inkling2Experts(nn.Module):
         start = self.ep_rank * self.num_experts
         self._load_full(param, loaded[start : start + self.num_experts])
 
+    # sm121: raw layout (no row shuffle / scale swizzle), the torch bmm reads
+    # it directly.
     def _load_weight(self, param: nn.Parameter, loaded: torch.Tensor) -> None:
         self._load_expert_shard(param, loaded)
-        param.data.copy_(param.data)  # sm121: raw layout, the torch bmm reads it directly
 
     def _load_block_scales(self, param: nn.Parameter, loaded: torch.Tensor) -> None:
         self._load_expert_shard(param, loaded)
-        param.data.copy_(param.data)  # sm121: raw layout, the torch bmm reads it directly
 
     @staticmethod
     def _load_full(param: nn.Parameter, loaded: torch.Tensor) -> None:
         assert loaded.shape == param.shape and loaded.dtype == param.dtype, (
             f"{loaded.shape} {loaded.dtype} != {param.shape} {param.dtype}"
         )
-        param.data.copy_(loaded)
+        # GB10: ``loaded`` is a view into the shard's mmap; a direct copy_
+        # makes the driver take its page faults (0.5-2 GiB per call here).
+        copy_from_checkpoint_(param.data, loaded)
 
     def plan(self, tokens: int):
         return expert_plan(tokens, self.topk, self.num_experts, self.nvfp4, self.shapes)

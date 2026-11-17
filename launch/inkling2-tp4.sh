@@ -86,6 +86,11 @@ ENV_PAIRS=(
 # Optional torch allocator knob (workaround for driver livelock on GB10 at
 # high occupancy: expandable segments' VA remapping spins forever there).
 [ -n "${PYTORCH_CUDA_ALLOC_CONF:-}" ] && ENV_PAIRS+=(-e "PYTORCH_CUDA_ALLOC_CONF=$PYTORCH_CUDA_ALLOC_CONF")
+# Staged weight fill knobs (patches/gb10_load.py). Unset = staged, which is
+# the fix; INKLING_LOAD_STAGED=0 restores the stock mmap copy for an A/B.
+for knob in INKLING_LOAD_STAGED INKLING_LOAD_CHUNK_MB INKLING_LOAD_DROP_CACHE; do
+  if [ -n "${!knob:-}" ]; then ENV_PAIRS+=(-e "$knob=${!knob}"); fi
+done
 if [ "${NCCL_IB_DISABLE:-0}" = "1" ]; then
   # Socket collectives (TCP over the routed fabric). On this switchless ring,
   # RoCE full-mesh for EP all-to-all needs cross-subnet QPs, which stall in

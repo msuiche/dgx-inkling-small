@@ -2,3 +2,4 @@ trtllm_bmm.py /usr/local/lib/python3.12/dist-packages/vllm/models/inkling2/ops/t
 encoder_output_width.py /usr/local/lib/python3.12/dist-packages/vllm/distributed/ec_transfer/ec_connector/encoder_output_width.py
 linear.py /usr/local/lib/python3.12/dist-packages/vllm/models/inkling2/ops/linear.py
 moe.py /usr/local/lib/python3.12/dist-packages/vllm/models/inkling2/moe.py
+gb10_load.py /usr/local/lib/python3.12/dist-packages/vllm/models/inkling2/ops/gb10_load.py
