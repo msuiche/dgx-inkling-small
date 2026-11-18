@@ -82,6 +82,9 @@ ENV_PAIRS=(
   -e "NCCL_DEBUG=${NCCL_DEBUG:-WARN}"
   -e "VLLM_HOST_IP=${VLLM_HOST_IP:?set per-node in .env}"
   -e "HF_HUB_OFFLINE=0"
+  # NCCL 2.31 multi-rank-per-GPU check fires on the single-GPU-per-node
+  # unified-memory setup during the TP group's pynccl init.
+  -e "NCCL_MULTI_RANK_GPU_ENABLE=1"
 )
 # Optional torch allocator knob (workaround for driver livelock on GB10 at
 # high occupancy: expandable segments' VA remapping spins forever there).
