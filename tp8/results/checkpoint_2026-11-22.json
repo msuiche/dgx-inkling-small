@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-22",
+  "cluster": "8x NVIDIA DGX Spark (GB10 SM121a, 48 SMs, 244 GB/s UMA LPDDR5X, 24 MiB L2, 121.63 GiB UMA/node, 4x 200GbE ConnectX-7 RoCEv2)",
+  "model": "thinkingmachines/Inkling-2-Small (594B total / 17B active MoE, TP8, 40 NVFP4 local SWA W=1024 + 8 MXFP8 global, 5-layer DSpark drafter K=7)",
+  "promoted_config": {
+    "name": "EXP-6B (Unified Wave-V3 Qualified Checkpoint)",
+    "path": "tp8/config/best.env",
+    "sha256": "a4a8aa6235d000b0a6fa4eb38e4b3d34f7acc8a3413b0496ed80788ee7692cb5",
+    "gmu": 0.72,
+    "max_num_batched_tokens": 16384,
+    "kv_cache_per_rank_gib": 27.29,
+    "kv_cache_tokens": 5066467,
+    "node_mem_available_gib": {
+      "rank0": 17.1,
+      "ranks1_to_7_range": [22.3, 22.7]
+    }
+  },
+  "gates": {
+    "bit_exact_decode": {
+      "status": "PASS",
+      "tool": "exact_ink.py (10 prompts, temp=0, 384 tok, serial)",
+      "passes": "3/3 PASS from pass 1",
+      "sha256": "1dcfb30680d0252c9c259e5cb2bd02d402b2f6123261f904a0074d3b5b46f8c3"
+    },
+    "c32_throughput": {
+      "command": "bench.py conc --conc 32 --max-tokens 512 --temp 0",
+      "exp6b_n6_raw_tok_s": [524.68, 515.37, 514.20, 522.06, 523.22, 514.43],
+      "exp6b_median_tok_s": 518.71,
+      "exp6b_mean_tok_s": 518.99,
+      "exp6b_wall_s_range": [31.227, 31.863],
+      "exp6_peak_tok_s": 528.07,
+      "exp6_n6_raw_tok_s": [528.07, 512.18, 515.82, 518.92, 497.35, 522.83],
+      "exp6_median_tok_s": 517.37,
+      "prior_best_env_median_tok_s": 508.2,
+      "starting_s8p3_baseline_tok_s": 420.94
+    },
+    "c1_decode": {
+      "command": "bench.py single --repeats 3 (1024 tok, temp=0)",
+      "exp6b_medians_tok_s": {"code": 131.05, "prose": 102.15, "math": 202.82, "g1_gm": 139.51},
+      "exp6_medians_tok_s": {"code": 131.59, "prose": 102.87, "math": 203.79, "g1_gm": 140.25},
+      "note": "Patch 02 (_is_full_decode_capturing) fixed a silent router_bf12_c32 FP32 prefill leak at T=125->M=128 in math (true 0-ULP BF16 prefill AL=4.933, itl_p50=25.75-25.82 ms vs leaked AL=5.468, itl_p50=26.12 ms)."
+    },
+    "cold_prefill_1m": {
+      "command": "bench_1m_e2e.py --ctx 1048500 --warm --max-tokens 256",
+      "precision": "Prefill-only FP8/TopK (not 0-ULP); decode remains 100% 0-ULP BF16",
+      "exp6b_warm_runs_s": [121.44, 120.90],
+      "exp6b_mean_s": 121.17,
+      "exp6b_prefill_tok_s": [8632.1, 8670.3],
+      "exp6b_warm_ttft_s": 2.95,
+      "exp6b_needles": "3/3",
+      "exp6_9run_range_s": [124.34, 124.96],
+      "exp6_9run_needles": "27/27",
+      "historical_s7u10f_record_s": 118.26
+    },
+    "multi_1m_kv_residency": {
+      "command": "bench_multi_1m.py --sessions 4",
+      "simultaneous_1m_sessions": 4,
+      "all_warm_ok": true,
+      "total_cached_tokens": 4192256,
+      "warm_turn2_ttft_s": [2.93, 2.99, 2.93, 2.94],
+      "needles": "12/12 (3/3 per session)",
+      "prior_best_sessions": 2,
+      "mechanism": "Compact Logical-Block FP8 Shadow K (libglobal_attn_sage2_sm121_v5.so, cap_blks=4096): 1.016 GiB constant vs 6.22-9.57 GiB full-pool Shadow K"
+    },
+    "wikitext2_perplexity": {
+      "harness": "lm-eval 0.4.13 (EleutherAI/wikitext_document_level, wikitext-2-raw-v1, test, 62 docs, max_length=2048, bos=200028)",
+      "word_perplexity": 5.805179023690721,
+      "byte_perplexity": 1.3894321332903194,
+      "bits_per_byte_lm_eval_raw": 0.4744953679269704,
+      "bits_per_byte_detokenized": 0.4936,
+      "total_nll_nats": 424448.04
+    }
+  },
+  "standalone_silicon_benchmarks": {
+    "pf_rhd_comm_sm121": {
+      "transport": "pynccl_p2p (Zero-Incast 3-step XOR Butterfly r^4->r^2->r^1, INT8 g64 + BF16 scales)",
+      "t8192_ms": {"bf16_ring": 2.872, "rhd_int8": 2.628, "speedup": "1.09x", "sqnr_db": 42.1},
+      "t16384_ms": {"bf16_ring": 5.354, "rhd_int8": 4.949, "speedup": "1.08x", "sqnr_db": 42.1}
+    },
+    "pf_moe_native_sm121_v4_w2_persistent": {
+      "t8192_ms": {"v3": 3.335, "v4_p2": 2.613, "speedup": "1.28x"},
+      "t16384_ms": {"v3": 6.847, "v4_p2": 5.519, "speedup": "1.24x"}
+    },
+    "fused_decode_attn_exact_sm121_v2": {
+      "suites_abc_0ulp": "PASS (100% literal 0-ULP across Linear C=1 local+global, S8-P6v2 Beam-2 Tree, and C=32 M=32..256)",
+      "suite_d_48l_cold_l2": "Triton + ns_mgs already faster (469-794 us vs 690-997 us C=1; 4.26 ms vs 6.21 ms C=32 M=128) -> kept Triton live, archived v2.cu as 0-ULP reference"
+    }
+  }
+}
